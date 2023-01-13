@@ -38,7 +38,7 @@ module sobel
 	localparam Compute = 4'b0010;
 	localparam Complete = 4'b0001;
 	reg [3:0] state;
-	integer i;
+	integer i,j;
 
 	// implement the logic to read A_RAM, do the sobel operation and write the results to GX_RAM, GY RAM
 	// Note: A_RAM are to be read synchronously.
@@ -66,13 +66,11 @@ module sobel
 	assign Gy_kernel[7] = 2;
 	assign Gy_kernel[8] = 1;
 
-
-
-	reg [width-1:0] A_data [0:kernel_size**2-1];  //buffer to store the data read from A_RAM
+	reg [width-1:0] A_data [0:kernel_area-1];  //buffer to store the data read from A_RAM
 	reg [width-1:0] GX_data;
 	reg [width-1:0] GY_data;
 	reg [3:0] kernel_counter;
-	reg [A_depth_bits-1:0] output_counter;
+ 	reg [A_depth_bits-1:0] output_counter;
 	reg [A_depth_bits-1:0] input_counter;
 		
 	always @(posedge clk) 
@@ -98,7 +96,6 @@ module sobel
 					A_read_en <= 1;
 					A_read_address <= input_counter;
 				end
-
 				Read: begin
 					if (kernel_counter == 0) begin
 						state <= Compute;
@@ -124,13 +121,17 @@ module sobel
 						A_data[kernel_counter] <= A_read_data_out;
 						state <= Read;
 						kernel_counter <= kernel_counter - 1;
+						GX_data <= 0;
+						GY_data <= 0;
 					end
 				end
 
 				Compute: begin
-					for (i = 0; i < kernel_area; i=i+1) begin
-						GX_data <= GX_data + A_data[kernel_area-i] * Gx_kernel[i];
+					for (i = 0; i < kernel_area-1; i=i+1) begin
 						GY_data <= GY_data + A_data[kernel_area-i] * Gy_kernel[i];
+					end
+					for (j = 0; j < kernel_area-1; j=j+1) begin
+						GX_data <= GX_data + A_data[kernel_area-i] * Gx_kernel[i];
 					end
 					if (GX_data[width-1] == 1) begin
 						GX_data <= -GX_data;
@@ -139,27 +140,27 @@ module sobel
 						GY_data <= -GY_data;
 					end
 					state <= Complete;
-					GX_write_en <= 1;
-					GX_write_address <= output_counter;
-					GX_write_data_in <= GX_data;
-					GY_write_en <= 1;
-					GY_write_address <= output_counter;
-					GY_write_data_in <= GY_data;
 				end
 
 				Complete: begin
 					output_counter <= output_counter -1;
-					GX_data <= 0;
-					GY_data <= 0;
+					kernel_counter <= kernel_area-1;
+					
 					if (output_counter == 0) begin
 						state <= Idle;
 						Done <= 1;
 					end
-					else state <= Read;
+					else 
+					begin
+						GX_write_en <= 1;
+						GX_write_address <= output_counter;
+						GX_write_data_in <= GX_data;
+						GY_write_en <= 1;
+						GY_write_address <= output_counter;
+						GY_write_data_in <= GY_data;
+						state <= Read;
+					end
 				end
 			endcase
 	end
-
 endmodule
-
-

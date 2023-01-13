@@ -150,7 +150,6 @@ input                          M_AXIS_TREADY;  // Connected slave device is read
               nr_of_reads <= NUMBER_OF_INPUT_WORDS - 1;
 			  Start <= 0;
 			  counter_gradient <= 1;
-
             end
 
           Read_Inputs:
@@ -164,6 +163,7 @@ input                          M_AXIS_TREADY;  // Connected slave device is read
                   state        <= Compute;
 				  Start <= 1;
                   nr_of_writes <= NUMBER_OF_OUTPUT_WORDS - 1;
+                  A_write_en <= 0;
                 end
               else
                 nr_of_reads <= nr_of_reads - 1;
@@ -182,20 +182,24 @@ input                          M_AXIS_TREADY;  // Connected slave device is read
             if (M_AXIS_TREADY == 1) 
             begin
               if (nr_of_writes == 0 && counter_gradient == 0)
+			  begin
                 state <= Idle;
+				GY_read_en <= 1;
+			  end
               else
 			  	if (counter_gradient == 1)
 				begin	
-					GX_read_en <= 1;
-					GX_read_address <= nr_of_writes;
 					// temp <= GX_read_data_out;
 					if (nr_of_writes == 0) 
 					begin
 						nr_of_writes <= NUMBER_OF_OUTPUT_WORDS-1;
 						counter_gradient <= 0;
+						GX_read_en <= 0;
 					end
 					else
 					begin
+						GX_read_en <= 1;
+						GX_read_address <= nr_of_writes;
 						nr_of_writes <= nr_of_writes - 1;
 						temp <= GX_read_data_out;
 					end
